@@ -145,7 +145,7 @@ void parse_resolv_conf() {
 }
 
 // handle children
-void reaper_handle (int sig) {
+void reaper_handle (int) {
   while (waitpid(-1, NULL, WNOHANG) > 0) { };
 }
 
