@@ -126,7 +126,7 @@ void parse_resolv_conf() {
 }
 
 // handle children
-void reaper_handle(int signum) {
+void reaper_handle(int) {
   while (waitpid(-1, NULL, WNOHANG) > 0) { };
 }
 
@@ -257,7 +257,7 @@ int udp_listener() {
 }
 
 // Function to handle Ctrl+C signal
-void handle_sigint(int signum) {
+void handle_sigint(int) {
   printf("\nReceived Ctrl+C. Exiting...\n");
 
   // Perform cleanup tasks here if needed
