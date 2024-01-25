@@ -89,7 +89,7 @@ void parse_config(char *file) {
       LOGFILE = string_value(get_value(line));
   }
   if (fclose(f) != 0)
-	  error("[!] Error closing configuration file");
+    error("[!] Error closing configuration file");
 }
 
 void parse_resolv_conf() {
@@ -110,7 +110,7 @@ void parse_resolv_conf() {
 
   if (fclose(f))
     error("[!] Error closing resolv.conf");
-  
+
   dns_servers = malloc(sizeof(char*) * NUM_DNS);
 
   f = fopen(RESOLVCONF, "r");
@@ -126,7 +126,7 @@ void parse_resolv_conf() {
 }
 
 // handle children
-void reaper_handle (int) {
+void reaper_handle(int signum) {
   while (waitpid(-1, NULL, WNOHANG) > 0) { };
 }
 
@@ -146,7 +146,7 @@ void tcp_query(void *query, response *buffer, int len) {
 
   if (connect(sock, (struct sockaddr*)&socks_server, sizeof(socks_server)) < 0)
     error("[!] Error connecting to proxy");
-  
+
   // socks handshake
   send(sock, "\x05\x01\x00", 3, 0);
   recv(sock, tmp, 1024, 0);
@@ -205,11 +205,10 @@ int udp_listener() {
       error("[!] Error opening logfile.");
   }
 
-  printf("[*] No errors, backgrounding process.\n");
+  printf("[*] Working, press ctrl+c to kill the process.\n");
 
   // daemonize the process.
-  if(fork() != 0) { exit(0); }
-  if(fork() != 0) { exit(0); }
+  setsid();
 
   setuid(getpwnam(USERNAME)->pw_uid);
   setgid(getgrnam(GROUPNAME)->gr_gid);
@@ -218,7 +217,7 @@ int udp_listener() {
   // setup SIGCHLD handler to kill off zombie children
   struct sigaction reaper;
   memset(&reaper, 0, sizeof(struct sigaction));
-  reaper.sa_handler = reaper_handle;
+  reaper.sa_handler = SIG_IGN;
   sigaction(SIGCHLD, &reaper, 0);
 
   while(1) {
@@ -257,7 +256,22 @@ int udp_listener() {
   }
 }
 
+// Function to handle Ctrl+C signal
+void handle_sigint(int signum) {
+  printf("\nReceived Ctrl+C. Exiting...\n");
+
+  // Perform cleanup tasks here if needed
+
+  exit(EXIT_SUCCESS);
+}
+
 int main(int argc, char *argv[]) {
+  // Set up signal handler for Ctrl+C (SIGINT)
+  if (signal(SIGINT, handle_sigint) == SIG_ERR) {
+    perror("Error setting up signal handler");
+    exit(EXIT_FAILURE);
+  }
+
   if (argc == 1)
     parse_config("dns_proxy.conf");
   else if (argc == 2) {
@@ -301,20 +315,20 @@ int main(int argc, char *argv[]) {
 
   printf("[*] Listening on: %s:%d\n", LISTEN_ADDR, LISTEN_PORT);
   printf("[*] Using SOCKS proxy: %s:%d\n", SOCKS_ADDR, SOCKS_PORT);
-  printf("[*] Will drop priviledges to %s:%s\n", USERNAME, GROUPNAME);
+  printf("[*] Will drop privileges to %s:%s\n", USERNAME, GROUPNAME);
   parse_resolv_conf();
   printf("[*] Loaded %d DNS servers from %s.\n\n", NUM_DNS, RESOLVCONF);
 
   if (!getpwnam(USERNAME)) {
-    printf("[!] Username (%s) does not exist! Quiting\n", USERNAME);
+    printf("[!] Username (%s) does not exist! Quitting\n", USERNAME);
     exit(1);
   }
   if (!getgrnam(GROUPNAME)) {
-    printf("[!] Group (%s) does not exist! Quiting\n", GROUPNAME);
+    printf("[!] Group (%s) does not exist! Quitting\n", GROUPNAME);
     exit(1);
   }
 
-  // start the dns proxy
+  // Start the dns proxy
   udp_listener();
   exit(EXIT_SUCCESS);
 }
